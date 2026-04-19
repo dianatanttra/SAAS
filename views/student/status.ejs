@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SAAS — Request Status</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+
+<nav class="navbar navbar-dark bg-primary px-3">
+  <span class="navbar-brand fw-bold">SAAS</span>
+  <a href="/submit" class="btn btn-outline-light btn-sm">+ New Request</a>
+</nav>
+
+<div class="container py-4" style="max-width:800px">
+
+  <% if (isNew) { %>
+    <div class="alert alert-success alert-dismissible fade show">
+      ✅ Your request was submitted successfully. Bookmark this page to check your status later.
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+  <% } %>
+
+  <div class="card mb-4">
+    <div class="card-header fw-semibold">Request Details</div>
+    <div class="card-body">
+      <div class="row g-2">
+        <div class="col-md-6"><strong>Name:</strong> <%= request.full_name %></div>
+        <div class="col-md-6"><strong>Roll No:</strong> <%= request.roll_number %></div>
+        <div class="col-md-6"><strong>Sport:</strong> <%= request.sport_name %></div>
+        <div class="col-md-6"><strong>Event:</strong> <%= request.event_name %></div>
+        <div class="col-12"><strong>Reason:</strong> <%= request.reason %></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-header fw-semibold">Lecture Entries</div>
+    <div class="table-responsive">
+      <table class="table table-bordered mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Date</th>
+            <th>Time</th>
+            <th>Subject</th>
+            <th>Course</th>
+            <th>Lectures</th>
+            <th>Status</th>
+            <th>Remarks</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% entries.forEach(e => { %>
+          <tr>
+            <td><%= e.date %></td>
+            <td><%= e.start_time %> – <%= e.end_time %></td>
+            <td><%= e.subject %></td>
+            <td><code><%= e.course_code %></code></td>
+            <td class="text-center"><%= e.lectures %></td>
+            <td>
+              <% if (e.status === 'approved') { %>
+                <span class="badge bg-success">Approved</span>
+              <% } else if (e.status === 'rejected') { %>
+                <span class="badge bg-danger">Rejected</span>
+              <% } else { %>
+                <span class="badge bg-warning text-dark">Pending</span>
+              <% } %>
+            </td>
+            <td><small><%= e.remarks || '—' %></small></td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="d-flex gap-2">
+    <a href="/submit" class="btn btn-primary btn-sm">← Back to Form</a>
+    <button onclick="navigator.clipboard.writeText(window.location.href).then(()=>alert('Link copied!'))"
+      class="btn btn-outline-secondary btn-sm">📋 Copy Status Link</button>
+  </div>
+
+  <p class="text-muted small mt-3">Share or bookmark this page to check your status anytime — no login required.</p>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

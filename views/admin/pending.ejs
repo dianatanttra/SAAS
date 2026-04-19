@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SAAS Admin — Pending</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    /* Mobile card layout for pending entries */
+    .entry-card { display: none; }
+    .entry-table { display: table; }
+
+    @media (max-width: 767px) {
+      .entry-card { display: block; }
+      .entry-table { display: none; }
+      .bulk-actions { flex-direction: column; align-items: stretch !important; }
+      .bulk-actions button { width: 100%; }
+      .search-bar-row { flex-direction: column !important; }
+      .search-bar-row input,
+      .search-bar-row select { width: 100% !important; }
+    }
+
+    .entry-card .card {
+      border-left: 4px solid #ffc107;
+    }
+    .action-btn {
+      min-height: 44px;
+      font-size: 1rem;
+    }
+    textarea, input[type="text"], input[type="date"] {
+      font-size: 16px !important; /* prevent iOS zoom */
+    }
+  </style>
+</head>
+<body class="bg-light">
+
+<%- include('../partials/admin-nav', { pendingCount, admin, active: 'pending' }) %>
+
+<div class="container-fluid py-3 px-3">
+
+  <!-- Header + search -->
+  <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <h5 class="fw-bold mb-0">
+      Pending Approvals
+      <span class="badge bg-warning text-dark"><%= pendingCount %></span>
+    </h5>
+  </div>
+
+  <!-- Search and filter -->
+  <div class="d-flex gap-2 mb-3 flex-wrap search-bar-row">
+    <input type="text" id="searchBar" class="form-control form-control-sm"
+      placeholder="Search student, subject, course..." style="width:260px">
+    <select id="filterSport" class="form-select form-select-sm" style="width:160px">
+      <option value="">All Sports</option>
+    </select>
+  </div>
+
+  <% if (locals.error) { %>
+    <div class="alert alert-danger"><%= error %></div>
+  <% } %>
+
+  <% if (entries.length === 0) { %>
+    <div class="alert alert-success">No pending entries. All caught up!</div>
+  <% } else { %>
+
+  <!-- Bulk actions -->
+  <form method="POST" action="/admin/bulk-action" id="bulkForm">
+    <input type="hidden" name="action" id="bulkAction">
+    <input type="hidden" name="remarks" id="bulkRemarks">
+
+    <div class="d-flex gap-2 mb-3 align-items-center flex-wrap bulk-actions">
+      <button type="button" class="btn btn-success btn-sm action-btn px-3"
+        onclick="confirmBulk('approve')">✓ Approve Selected</button>
+      <button type="button" class="btn btn-danger btn-sm action-btn px-3"
+        onclick="openBulkReject()">✕ Reject Selected</button>
+      <span class="text-muted small ms-2" id="selectedCount">0 selected</span>
+    </div>
+
+    <!-- ── DESKTOP TABLE ── -->
+    <div class="table-responsive entry-table">
+      <table class="table table-bordered table-hover bg-white">
+        <thead class="table-dark">
+          <tr>
+            <th><input type="checkbox" id="selectAll"></th>
+            <th>Student</th>
+            <th>Date</th>
+            <th>Time</th>
+            <th>Subject</th>
+            <th>Course</th>
+            <th>Lec.</th>
+            <th>Sport / Event</th>
+            <th>Reason</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="entriesBody">
+          <% entries.forEach(e => { %>
+          <tr data-sport="<%= e.sport_name.toLowerCase() %>"
+              data-text="<%= (e.full_name + ' ' + e.subject + ' ' + e.course_code + ' ' + e.sport_name).toLowerCase() %>">
+            <td><input type="checkbox" name="entry_ids[]" value="<%= e.entry_id %>" class="row-check"></td>
+            <td>
+              <strong><%= e.full_name %></strong><br>
+              <small class="text-muted"><%= e.roll_number %> | <%= e.year %> <%= e.stream %> <%= e.division %></small>
+            </td>
+            <td><%= e.date %></td>
+            <td><small><%= e.start_time %> –<br><%= e.end_time %></small></td>
+            <td><%= e.subject %></td>
+            <td><code><%= e.course_code %></code></td>
+            <td class="text-center"><%= e.lectures %></td>
+            <td><small><strong><%= e.sport_name %></strong><br><%= e.event_name %></small></td>
+            <td><small class="text-muted"><%= e.reason %></small></td>
+            <td>
+              <button type="button" class="btn btn-success btn-sm mb-1 action-btn"
+                data-id="<%= e.entry_id %>"
+                data-student="<%= e.full_name %>"
+                data-subject="<%= e.subject %>"
+                data-date="<%= e.date %>"
+                onclick="confirmApprove(this)">✓ Approve</button>
+              <button type="button" class="btn btn-danger btn-sm action-btn"
+                data-id="<%= e.entry_id %>"
+                onclick="openReject(this.dataset.id)">✕ Reject</button>
+            </td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ── MOBILE CARDS ── -->
+    <div id="mobileCards">
+      <% entries.forEach(e => { %>
+      <div class="entry-card mb-3"
+        data-sport="<%= e.sport_name.toLowerCase() %>"
+        data-text="<%= (e.full_name + ' ' + e.subject + ' ' + e.course_code + ' ' + e.sport_name).toLowerCase() %>">
+        <div class="card shadow-sm">
+          <div class="card-body pb-2">
+
+            <!-- Checkbox + student -->
+            <div class="d-flex justify-content-between align-items-start mb-2">
+              <div>
+                <input type="checkbox" name="entry_ids[]" value="<%= e.entry_id %>"
+                  class="row-check me-2">
+                <strong><%= e.full_name %></strong>
+                <div class="text-muted small"><%= e.roll_number %> | <%= e.year %> <%= e.stream %> Div <%= e.division %></div>
+              </div>
+              <span class="badge bg-warning text-dark">Pending</span>
+            </div>
+
+            <!-- Entry details -->
+            <div class="row g-1 small mb-2">
+              <div class="col-6">
+                <span class="text-muted">Date:</span> <%= e.date %>
+              </div>
+              <div class="col-6">
+                <span class="text-muted">Time:</span> <%= e.start_time %> – <%= e.end_time %>
+              </div>
+              <div class="col-6">
+                <span class="text-muted">Subject:</span> <%= e.subject %>
+              </div>
+              <div class="col-6">
+                <span class="text-muted">Course:</span> <code><%= e.course_code %></code>
+              </div>
+              <div class="col-6">
+                <span class="text-muted">Lectures:</span> <%= e.lectures %>
+              </div>
+              <div class="col-6">
+                <span class="text-muted">Sport:</span> <%= e.sport_name %>
+              </div>
+              <div class="col-12">
+                <span class="text-muted">Event:</span> <%= e.event_name %>
+              </div>
+              <div class="col-12">
+                <span class="text-muted">Reason:</span> <%= e.reason %>
+              </div>
+            </div>
+
+            <!-- Action buttons -->
+            <div class="d-flex gap-2 mt-2">
+              <button type="button" class="btn btn-success action-btn flex-grow-1"
+                data-id="<%= e.entry_id %>"
+                data-student="<%= e.full_name %>"
+                data-subject="<%= e.subject %>"
+                data-date="<%= e.date %>"
+                onclick="confirmApprove(this)">✓ Approve</button>
+              <button type="button" class="btn btn-danger action-btn flex-grow-1"
+                data-id="<%= e.entry_id %>"
+                onclick="openReject(this.dataset.id)">✕ Reject</button>
+            </div>
+
+          </div>
+        </div>
+      </div>
+      <% }) %>
+    </div>
+
+  </form>
+  <% } %>
+</div>
+
+<!-- Approve confirm form (hidden) -->
+<form method="POST" id="approveForm" style="display:none">
+  <input type="hidden" name="remarks" value="">
+</form>
+
+<!-- Reject Modal -->
+<div class="modal fade" id="rejectModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form method="POST" id="rejectForm">
+        <div class="modal-header bg-danger text-white">
+          <h5 class="modal-title">Reject Entry</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p class="text-muted small mb-2" id="rejectContext"></p>
+          <label class="form-label fw-semibold">
+            Reason for rejection <span class="text-danger">*</span>
+          </label>
+          <textarea name="remarks" id="rejectRemarks" class="form-control" rows="3"
+            required minlength="5"
+            placeholder="Explain why this entry is being rejected"></textarea>
+          <div class="form-text">Minimum 5 characters. Student will see this reason.</div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary flex-grow-1" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-danger flex-grow-1">Confirm Reject</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Approve Confirm Modal -->
+<div class="modal fade" id="approveModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title">Confirm Approval</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p id="approveContext" class="small text-muted"></p>
+        <label class="form-label">Optional note</label>
+        <input type="text" id="approveNote" class="form-control"
+          placeholder="e.g. Verified against tournament schedule">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary flex-grow-1" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-success flex-grow-1" onclick="submitApprove()">Confirm Approve</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Bulk Reject Modal -->
+<div class="modal fade" id="bulkRejectModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title">Bulk Reject</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small" id="bulkRejectCount"></p>
+        <label class="form-label fw-semibold">
+          Reason for rejection <span class="text-danger">*</span>
+        </label>
+        <textarea id="bulkRejectRemarks" class="form-control" rows="3"
+          placeholder="Reason applies to all selected entries"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary flex-grow-1" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-danger flex-grow-1" onclick="submitBulkReject()">Confirm Reject All</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Bulk Approve Confirm Modal -->
+<div class="modal fade" id="bulkApproveModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title">Bulk Approve</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p id="bulkApproveCount"></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary flex-grow-1" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-success flex-grow-1" onclick="submitBulkApprove()">Confirm Approve All</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  // ── Select all — works for both table and cards ──
+  document.getElementById('selectAll') && document.getElementById('selectAll').addEventListener('change', function() {
+    document.querySelectorAll('.row-check').forEach(c => c.checked = this.checked);
+    updateCount();
+  });
+  document.querySelectorAll('.row-check').forEach(c => c.addEventListener('change', updateCount));
+  function updateCount() {
+    const n = document.querySelectorAll('.row-check:checked').length;
+    document.getElementById('selectedCount').textContent = n + ' selected';
+  }
+  function getCheckedIds() {
+    return [...document.querySelectorAll('.row-check:checked')].map(c => c.value);
+  }
+
+  // ── Single approve ──
+  let pendingApproveId = null;
+  function confirmApprove(btn) {
+    pendingApproveId = btn.dataset.id;
+    document.getElementById('approveContext').textContent =
+      'Approve entry for ' + btn.dataset.student + ' — ' + btn.dataset.subject + ' on ' + btn.dataset.date + '?';
+    document.getElementById('approveNote').value = '';
+    new bootstrap.Modal(document.getElementById('approveModal')).show();
+  }
+  function submitApprove() {
+    const note = document.getElementById('approveNote').value;
+    const form = document.getElementById('approveForm');
+    form.action = '/admin/approve/' + pendingApproveId;
+    form.querySelector('input[name="remarks"]').value = note;
+    bootstrap.Modal.getInstance(document.getElementById('approveModal')).hide();
+    form.submit();
+  }
+
+  // ── Single reject ──
+  function openReject(id) {
+    document.getElementById('rejectForm').action = '/admin/reject/' + id;
+    document.getElementById('rejectRemarks').value = '';
+    document.getElementById('rejectContext').textContent = 'Entry ID: ' + id;
+    new bootstrap.Modal(document.getElementById('rejectModal')).show();
+  }
+
+  // ── Bulk approve ──
+  function confirmBulk(action) {
+    const ids = getCheckedIds();
+    if (ids.length === 0) { alert('Select at least one entry.'); return; }
+    document.getElementById('bulkApproveCount').textContent =
+      'You are about to approve ' + ids.length + ' selected entr' + (ids.length === 1 ? 'y' : 'ies') + '. Are you sure?';
+    new bootstrap.Modal(document.getElementById('bulkApproveModal')).show();
+  }
+  function submitBulkApprove() {
+    document.getElementById('bulkAction').value = 'approve';
+    document.getElementById('bulkRemarks').value = '';
+    bootstrap.Modal.getInstance(document.getElementById('bulkApproveModal')).hide();
+    document.getElementById('bulkForm').submit();
+  }
+
+  // ── Bulk reject ──
+  function openBulkReject() {
+    const ids = getCheckedIds();
+    if (ids.length === 0) { alert('Select at least one entry.'); return; }
+    document.getElementById('bulkRejectCount').textContent =
+      'You are about to reject ' + ids.length + ' selected entr' + (ids.length === 1 ? 'y' : 'ies') + '.';
+    document.getElementById('bulkRejectRemarks').value = '';
+    new bootstrap.Modal(document.getElementById('bulkRejectModal')).show();
+  }
+  function submitBulkReject() {
+    const reason = document.getElementById('bulkRejectRemarks').value.trim();
+    if (reason.length < 5) { alert('Please enter a reason of at least 5 characters.'); return; }
+    document.getElementById('bulkAction').value = 'reject';
+    document.getElementById('bulkRemarks').value = reason;
+    bootstrap.Modal.getInstance(document.getElementById('bulkRejectModal')).hide();
+    document.getElementById('bulkForm').submit();
+  }
+
+  // ── Search and filter ──
+  const searchBar = document.getElementById('searchBar');
+  const filterSport = document.getElementById('filterSport');
+
+  // Populate sport dropdown
+  const sports = new Set();
+  document.querySelectorAll('[data-sport]').forEach(el => {
+    if (el.dataset.sport) sports.add(el.dataset.sport);
+  });
+  sports.forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s;
+    opt.textContent = s.charAt(0).toUpperCase() + s.slice(1);
+    filterSport.appendChild(opt);
+  });
+
+  function filterEntries() {
+    const search = searchBar.value.toLowerCase();
+    const sport = filterSport.value.toLowerCase();
+
+    // Filter desktop table rows
+    document.querySelectorAll('#entriesBody tr').forEach(row => {
+      const matchSearch = !search || row.dataset.text.includes(search);
+      const matchSport = !sport || row.dataset.sport.includes(sport);
+      row.style.display = matchSearch && matchSport ? '' : 'none';
+    });
+
+    // Filter mobile cards
+    document.querySelectorAll('.entry-card').forEach(card => {
+      const matchSearch = !search || card.dataset.text.includes(search);
+      const matchSport = !sport || card.dataset.sport.includes(sport);
+      card.style.display = matchSearch && matchSport ? '' : 'none';
+    });
+  }
+
+  searchBar.addEventListener('input', filterEntries);
+  filterSport.addEventListener('change', filterEntries);
+</script>
+</body>
+</html>

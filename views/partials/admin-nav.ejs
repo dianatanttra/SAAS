@@ -1,0 +1,48 @@
+<nav class="navbar navbar-dark bg-dark px-3">
+  <span class="navbar-brand fw-bold">SAAS Admin</span>
+
+  <!-- Mobile hamburger -->
+  <button class="navbar-toggler d-md-none border-0" type="button" onclick="toggleMobileNav()">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  <!-- Desktop nav -->
+  <div class="d-none d-md-flex gap-3 align-items-center">
+    <a href="/admin/pending" class="nav-link text-white <%= active === 'pending' ? 'fw-bold text-warning' : '' %>">
+      Pending
+      <% if (pendingCount > 0) { %>
+        <span class="badge bg-warning text-dark"><%= pendingCount %></span>
+      <% } %>
+    </a>
+    <a href="/admin/summary" class="nav-link text-white <%= active === 'summary' ? 'fw-bold text-warning' : '' %>">
+      Approved Summary
+    </a>
+    <span class="text-white small">| <%= admin.full_name %></span>
+    <a href="/admin/logout" class="btn btn-outline-light btn-sm">Logout</a>
+  </div>
+</nav>
+
+<!-- Mobile nav drawer -->
+<div id="mobileNav" class="d-md-none bg-dark px-3 pb-3 d-none">
+  <div class="d-flex flex-column gap-2 pt-2">
+    <a href="/admin/pending" class="nav-link text-white <%= active === 'pending' ? 'fw-bold text-warning' : '' %>">
+      Pending Approvals
+      <% if (pendingCount > 0) { %>
+        <span class="badge bg-warning text-dark"><%= pendingCount %></span>
+      <% } %>
+    </a>
+    <a href="/admin/summary" class="nav-link text-white <%= active === 'summary' ? 'fw-bold text-warning' : '' %>">
+      Approved Summary
+    </a>
+    <hr class="border-secondary my-1">
+    <span class="text-white small"><%= admin.full_name %></span>
+    <a href="/admin/logout" class="btn btn-outline-light btn-sm w-100">Logout</a>
+  </div>
+</div>
+
+<script>
+  function toggleMobileNav() {
+    const nav = document.getElementById('mobileNav');
+    nav.classList.toggle('d-none');
+  }
+</script>
